@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Candy Crush Clone</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+        #score-container {
+            margin-top: 10px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+    <div id="score-container">
+        Score: <span id="current-score">0</span><br>
+        High Score: <span id="high-score">0</span>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const TILE_IMAGES = [
+            'https://static.wikia.nocookie.net/gray-zone-warfare/images/7/7b/LightBleedIcon.png/revision/latest?cb=20240502004158',
+            'https://static.wikia.nocookie.net/gray-zone-warfare/images/1/1c/VisionBlackOutIcon.png/revision/latest?cb=20240430223954',
+            'https://static.wikia.nocookie.net/gray-zone-warfare/images/6/6f/MediumBleedingIcon.png/revision/latest?cb=20240502003137',
+            'https://static.wikia.nocookie.net/gray-zone-warfare/images/7/7a/NauseousIcon.png/revision/latest?cb=20240502003138',
+            'https://static.wikia.nocookie.net/gray-zone-warfare/images/9/9d/TremorsIcon.png/revision/latest?cb=20240502003146'
+        ];
+
+        const GRID_SIZE = 8;
+        const CELL_SIZE = canvas.width / GRID_SIZE;
+        const COLORS = ['red', 'blue', 'green', 'yellow', 'purple'];
+
+        let grid = [];
+        let selectedCandy = null;
+        let isDragging = false;
+        let dragX, dragY;
+        let ready = false;
+        let score = 0;
+        let highScore = localStorage.getItem('highScore') || 0;
+
+
+        
+
+        function loadImages() {
+            return Promise.all(TILE_IMAGES.map(url => {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.onload = () => resolve(img);
+                    img.onerror = (e) => reject(new Error(`Failed to load image: ${url}`));
+                    img.src = url;
+                });
+            }));
+        }
+
+        function initGrid() {
+            for (let i = 0; i < GRID_SIZE; i++) {
+                grid[i] = [];
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    grid[i][j] = Math.floor(Math.random() * TILE_IMAGES.length);
+                }
+            }
+        }
+
+        function drawGrid() {
+            if (!loadedImages.length) return; // Don't draw if images aren't loaded
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = 0; i < GRID_SIZE; i++) {
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    console.log(loadedImages[grid[i][j]])
+                    ctx.drawImage(loadedImages[grid[i][j]], i * CELL_SIZE, j * CELL_SIZE, CELL_SIZE - 2, CELL_SIZE - 2);
+                }
+            }
+
+            if (isDragging && selectedCandy) {
+                // Draw selected candy outline
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(
+                    selectedCandy.i * CELL_SIZE,
+                    selectedCandy.j * CELL_SIZE,
+                    CELL_SIZE,
+                    CELL_SIZE
+                );
+
+                // Draw dragged candy
+                ctx.drawImage(loadedImages[grid[selectedCandy.i][selectedCandy.j]], 
+                    dragX - CELL_SIZE / 2, 
+                    dragY - CELL_SIZE / 2, 
+                    CELL_SIZE, 
+                    CELL_SIZE
+                );
+                
+                // Draw outline for dragged candy
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(
+                    dragX - CELL_SIZE / 2,
+                    dragY - CELL_SIZE / 2,
+                    CELL_SIZE,
+                    CELL_SIZE
+                );
+            }
+            ready = true;
+            updateScoreDisplay();
+        }
+
+        function getClickedCandy(x, y) {
+            const i = Math.floor(x / CELL_SIZE);
+            const j = Math.floor(y / CELL_SIZE);
+            return { i, j };
+        }
+
+        function swapCandies(candy1, candy2) {
+            const temp = grid[candy1.i][candy1.j];
+            grid[candy1.i][candy1.j] = grid[candy2.i][candy2.j];
+            grid[candy2.i][candy2.j] = temp;
+        }
+
+        function checkMatches() {
+            let matches = [];
+
+            // Check horizontal matches
+            for (let j = 0; j < GRID_SIZE; j++) {
+                let count = 1;
+                for (let i = 1; i < GRID_SIZE; i++) {
+                    if (grid[i][j] === grid[i-1][j] && grid[i][j] !== null) {
+                        count++;
+                    } else {
+                        if (count >= 3) {
+                            for (let k = i - count; k < i; k++) {
+                                matches.push({i: k, j});
+                            }
+                        }
+                        count = 1;
+                    }
+                }
+                if (count >= 3) {
+                    for (let k = GRID_SIZE - count; k < GRID_SIZE; k++) {
+                        matches.push({i: k, j});
+                    }
+                }
+            }
+
+            // Check vertical matches
+            for (let i = 0; i < GRID_SIZE; i++) {
+                let count = 1;
+                for (let j = 1; j < GRID_SIZE; j++) {
+                    if (grid[i][j] === grid[i][j-1] && grid[i][j] !== null) {
+                        count++;
+                    } else {
+                        if (count >= 3) {
+                            for (let k = j - count; k < j; k++) {
+                                matches.push({i, j: k});
+                            }
+                        }
+                        count = 1;
+                    }
+                }
+                if (count >= 3) {
+                    for (let k = GRID_SIZE - count; k < GRID_SIZE; k++) {
+                        matches.push({i, j: k});
+                    }
+                }
+            }
+
+            return matches;
+        }
+
+        function removeMatches(matches) {
+            matches.forEach(candy => {
+                grid[candy.i][candy.j] = null;
+            });
+            updateScore(matches.length);
+        }
+
+        function fallCandies() {
+            for (let i = 0; i < GRID_SIZE; i++) {
+                let emptySpaces = 0;
+                for (let j = GRID_SIZE - 1; j >= 0; j--) {
+                    if (grid[i][j] === null) {
+                        emptySpaces++;
+                    } else if (emptySpaces > 0) {
+                        grid[i][j + emptySpaces] = grid[i][j];
+                        grid[i][j] = null;
+                    }
+                }
+            }
+        }
+
+
+
+        function updateScore(matchedCandies) {
+            score += matchedCandies * 10;
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('highScore', highScore);
+            }
+            updateScoreDisplay();
+        }
+
+        function updateScoreDisplay() {
+            document.getElementById('current-score').textContent = score;
+            document.getElementById('high-score').textContent = highScore;
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            selectedCandy = getClickedCandy(x, y);
+            isDragging = true;
+            dragX = x;
+            dragY = y;
+            drawGrid();
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const rect = canvas.getBoundingClientRect();
+                dragX = e.clientX - rect.left;
+                dragY = e.clientY - rect.top;
+                drawGrid();
+            }
+        });
+
+        function fillEmptySpaces() {
+            for (let i = 0; i < GRID_SIZE; i++) {
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    if (grid[i][j] === null) {
+                        grid[i][j] = Math.floor(Math.random() * TILE_IMAGES.length);
+                    }
+                }
+            }
+        }
+
+        canvas.addEventListener('mouseup', (e) => {
+            if (isDragging) {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const clickedCandy = getClickedCandy(x, y);
+
+                if (
+                    (Math.abs(clickedCandy.i - selectedCandy.i) === 1 && clickedCandy.j === selectedCandy.j) ||
+                    (Math.abs(clickedCandy.j - selectedCandy.j) === 1 && clickedCandy.i === selectedCandy.i)
+                ) {
+                    swapCandies(selectedCandy, clickedCandy);
+                    let matches = checkMatches();
+                    if (matches.length > 0) {
+                        removeMatches(matches);
+                        fallCandies();
+                        fillEmptySpaces();
+                        // Check for cascading matches
+                        do {
+                            matches = checkMatches();
+                            if (matches.length > 0) {
+                                removeMatches(matches);
+                                fallCandies();
+                                fillEmptySpaces();
+                            }
+                        } while (matches.length > 0);
+                    } else {
+                        swapCandies(selectedCandy, clickedCandy);
+                    }
+                }
+                
+                isDragging = false;
+                selectedCandy = null;
+                drawGrid();
+            }
+        });
+
+        let loadedImages = [];
+
+        loadImages().then(images => {
+            loadedImages = images;
+            initGrid();
+            drawGrid();
+        }).catch(error => {
+            console.error("Failed to load images:", error);
+        });
+
+        setInterval(()=>{
+            if(!ready) return
+            checkMatches()
+        }, 200)
+    </script>
+</body>
+</html>
