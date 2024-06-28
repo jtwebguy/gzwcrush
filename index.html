@@ -76,7 +76,7 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             for (let i = 0; i < GRID_SIZE; i++) {
                 for (let j = 0; j < GRID_SIZE; j++) {
-                    console.log(loadedImages[grid[i][j]])
+                    //console.log(loadedImages[grid[i][j]])
                     ctx.drawImage(loadedImages[grid[i][j]], i * CELL_SIZE, j * CELL_SIZE, CELL_SIZE - 2, CELL_SIZE - 2);
                 }
             }
@@ -236,10 +236,21 @@
         canvas.addEventListener('mouseup', handleEnd);
 
         function handleStart(e){
+            if(!e) return
+            console.log(e)
             const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            let x, y
+            if( e.touches ){
+                const touch = e.touches[0];
+                x = touch.clientX - rect.left;
+                y = touch.clientY - rect.top;
+            }else{
+                x = e.clientX - rect.left;
+                y = e.clientY - rect.top;
+            }
+            console.log(x, y, rect.left, rect.top)
             selectedCandy = getClickedCandy(x, y);
+            console.log(selectedCandy)
             isDragging = true;
             dragX = x;
             dragY = y;
@@ -249,8 +260,18 @@
         function handleEnd(e){
             if (isDragging) {
                 const rect = canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
+                let x, y
+                console.log(e.changedTouches)
+                if(e.changedTouches){
+                    const touch = e.changedTouches[0];
+                    x = touch.clientX - rect.left;
+                    y = touch.clientY - rect.top;
+                }else{
+                    
+                    x = e.clientX - rect.left;
+                    y = e.clientY - rect.top;
+                }
+
                 const clickedCandy = getClickedCandy(x, y);
 
                 if (
@@ -286,8 +307,16 @@
         function handleMove(e){
             if (isDragging) {
                 const rect = canvas.getBoundingClientRect();
-                dragX = e.clientX - rect.left;
-                dragY = e.clientY - rect.top;
+
+                if( e.touches ){
+                    const touch = e.touches[0];
+                    dragX = touch.clientX - rect.left;
+                    dragY = touch.clientY - rect.top;
+                }else{
+                    
+                    dragX = e.clientX - rect.left;
+                    dragY = e.clientY - rect.top;
+                }
                 drawGrid();
             }
         }
