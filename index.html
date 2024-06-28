@@ -236,6 +236,7 @@
         canvas.addEventListener('mouseup', handleEnd);
 
         function handleStart(e){
+            e.preventDefault();
             if(!e) return
             console.log(e)
             const rect = canvas.getBoundingClientRect();
@@ -258,6 +259,7 @@
         }
 
         function handleEnd(e){
+            e.preventDefault();
             if (isDragging) {
                 const rect = canvas.getBoundingClientRect();
                 let x, y
@@ -305,6 +307,7 @@
         }
 
         function handleMove(e){
+            e.preventDefault();
             if (isDragging) {
                 const rect = canvas.getBoundingClientRect();
 
