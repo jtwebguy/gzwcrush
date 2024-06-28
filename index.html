@@ -25,7 +25,7 @@
         const ctx = canvas.getContext('2d');
 
         const TILE_IMAGES = [
-            './images/YellowBreathing.webp',
+            './images/VisionBlackOutIcon.webp',
              './images/SoreArmsIcon.webp',
              './images/YellowBreathing.webp',
              './images/PainIcon.webp',
@@ -33,7 +33,7 @@
              './images/TremorsIcon.webp'
         ];
 
-        
+       
 
         const GRID_SIZE = 8;
         const CELL_SIZE = canvas.width / GRID_SIZE;
@@ -43,7 +43,7 @@
         let selectedCandy = null;
         let isDragging = false;
         let dragX, dragY;
-        let ready = false;
+        var ready = false;
         let score = 0;
         let highScore = localStorage.getItem('highScore') || 0;
 
@@ -117,6 +117,12 @@
         function getClickedCandy(x, y) {
             const i = Math.floor(x / CELL_SIZE);
             const j = Math.floor(y / CELL_SIZE);
+            if (i >= GRID_SIZE) {
+                i = GRID_SIZE - 1;
+            }
+            if (j >= GRID_SIZE) {
+                j = GRID_SIZE - 1;
+            }
             return { i, j };
         }
 
@@ -213,25 +219,9 @@
             document.getElementById('high-score').textContent = highScore;
         }
 
-        canvas.addEventListener('mousedown', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            selectedCandy = getClickedCandy(x, y);
-            isDragging = true;
-            dragX = x;
-            dragY = y;
-            drawGrid();
-        });
+        canvas.addEventListener('mousedown', handleStart);
 
-        canvas.addEventListener('mousemove', (e) => {
-            if (isDragging) {
-                const rect = canvas.getBoundingClientRect();
-                dragX = e.clientX - rect.left;
-                dragY = e.clientY - rect.top;
-                drawGrid();
-            }
-        });
+        canvas.addEventListener('mousemove', handleMove);
 
         function fillEmptySpaces() {
             for (let i = 0; i < GRID_SIZE; i++) {
@@ -243,7 +233,20 @@
             }
         }
 
-        canvas.addEventListener('mouseup', (e) => {
+        canvas.addEventListener('mouseup', handleEnd);
+
+        function handleStart(e){
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            selectedCandy = getClickedCandy(x, y);
+            isDragging = true;
+            dragX = x;
+            dragY = y;
+            drawGrid();
+        }
+
+        function handleEnd(e){
             if (isDragging) {
                 const rect = canvas.getBoundingClientRect();
                 const x = e.clientX - rect.left;
@@ -278,7 +281,20 @@
                 selectedCandy = null;
                 drawGrid();
             }
-        });
+        }
+
+        function handleMove(e){
+            if (isDragging) {
+                const rect = canvas.getBoundingClientRect();
+                dragX = e.clientX - rect.left;
+                dragY = e.clientY - rect.top;
+                drawGrid();
+            }
+        }
+
+        document.addEventListener("touchstart", handleStart);
+        document.addEventListener("touchend", handleEnd);
+        document.addEventListener("touchmove", handleMove);
 
         let loadedImages = [];
 
@@ -286,14 +302,31 @@
             loadedImages = images;
             initGrid();
             drawGrid();
+            ready = true;
         }).catch(error => {
             console.error("Failed to load images:", error);
         });
 
         setInterval(()=>{
             if(!ready) return
-            //checkMatches()
-        }, 200)
+            
+            let matches = checkMatches();
+                    if (matches.length > 0) {
+                        removeMatches(matches);
+                        fallCandies();
+                        fillEmptySpaces();
+                        // Check for cascading matches
+                        do {
+                            matches = checkMatches();
+                            if (matches.length > 0) {
+                                removeMatches(matches);
+                                fallCandies();
+                                fillEmptySpaces();
+                            }
+                        } while (matches.length > 0);
+                    }
+
+        }, 500)
     </script>
 </body>
 </html>
