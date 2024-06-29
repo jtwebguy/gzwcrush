@@ -68,7 +68,7 @@
             for (let i = 0; i < GRID_SIZE; i++) {
                 grid[i] = [];
                 for (let j = 0; j < GRID_SIZE; j++) {
-                    grid[i][j] = Math.floor(Math.random() * TILE_IMAGES.length);
+                    grid[i][j] = { type: Math.floor(Math.random() * TILE_IMAGES.length), cracked: false };
                 }
             }
         }
@@ -76,11 +76,30 @@
         function drawGrid() {
             if (!loadedImages.length) return; // Don't draw if images aren't loaded
 
+            // ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // for (let i = 0; i < GRID_SIZE; i++) {
+            //     for (let j = 0; j < GRID_SIZE; j++) {
+            //         //console.log(loadedImages[grid[i][j]])
+            //         ctx.drawImage(loadedImages[grid[i][j]], i * CELL_SIZE, j * CELL_SIZE, CELL_SIZE - 2, CELL_SIZE - 2);
+            //     }
+            // }
+
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             for (let i = 0; i < GRID_SIZE; i++) {
                 for (let j = 0; j < GRID_SIZE; j++) {
-                    //console.log(loadedImages[grid[i][j]])
-                    ctx.drawImage(loadedImages[grid[i][j]], i * CELL_SIZE, j * CELL_SIZE, CELL_SIZE - 2, CELL_SIZE - 2);
+                    if (grid[i][j] !== null) {
+                        const tileType = grid[i][j].type || grid[i][j];
+                        console.log(tileType.type)
+                        if(tileType.type !== undefined){
+                            ctx.drawImage(loadedImages[tileType.type], i * CELL_SIZE, j * CELL_SIZE, CELL_SIZE - 2, CELL_SIZE - 2);
+                        }else{
+                            ctx.drawImage(loadedImages[tileType], i * CELL_SIZE, j * CELL_SIZE, CELL_SIZE - 2, CELL_SIZE - 2);
+                        }
+                        
+                        if (grid[i][j].cracked) {
+                            drawCrackedEffect(i * CELL_SIZE, j * CELL_SIZE, CELL_SIZE - 2, CELL_SIZE - 2);
+                        }
+                    }
                 }
             }
 
@@ -96,12 +115,22 @@
                 );
 
                 // Draw dragged candy
-                ctx.drawImage(loadedImages[grid[selectedCandy.i][selectedCandy.j]], 
-                    dragX - CELL_SIZE / 2, 
-                    dragY - CELL_SIZE / 2, 
-                    CELL_SIZE, 
-                    CELL_SIZE
-                );
+                const tileType = grid[selectedCandy.i][selectedCandy.j].type || grid[selectedCandy.i][selectedCandy.j];
+                if(tileType.type !== undefined){
+                    ctx.drawImage(loadedImages[tileType.type], 
+                        dragX - CELL_SIZE / 2, 
+                        dragY - CELL_SIZE / 2, 
+                        CELL_SIZE, 
+                        CELL_SIZE
+                    );
+                }else{
+                    ctx.drawImage(loadedImages[tileType], 
+                        dragX - CELL_SIZE / 2, 
+                        dragY - CELL_SIZE / 2, 
+                        CELL_SIZE, 
+                        CELL_SIZE
+                    );
+                }
                 
                 // Draw outline for dragged candy
                 ctx.strokeStyle = 'black';
@@ -117,6 +146,31 @@
             updateScoreDisplay();
         }
 
+
+        function drawCrackedEffect(x, y, width, height) {
+            ctx.save();
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.lineWidth = 2;
+            
+            // Create multiple cracks
+            for (let i = 0; i < 5; i++) {
+                ctx.beginPath();
+                ctx.moveTo(x + Math.random() * width, y);
+                
+                // Add multiple segments to each crack
+                for (let j = 0; j < 3; j++) {
+                    ctx.lineTo(
+                        x + Math.random() * width,
+                        y + (j + 1) * (height / 3) + Math.random() * 10 - 5
+                    );
+                }
+                
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
         function getClickedCandy(x, y) {
             const i = Math.floor(x / CELL_SIZE);
             const j = Math.floor(y / CELL_SIZE);
@@ -129,10 +183,29 @@
             return { i, j };
         }
 
+        function swapCandiesX(candy1, candy2) {
+            const temp = grid[candy1.i][candy1.j];
+            grid[candy1.i][candy1.j] = grid[candy2.i][candy2.j];
+            grid[candy2.i][candy2.j] = temp;
+        }
+
         function swapCandies(candy1, candy2) {
             const temp = grid[candy1.i][candy1.j];
             grid[candy1.i][candy1.j] = grid[candy2.i][candy2.j];
             grid[candy2.i][candy2.j] = temp;
+        }
+
+        function removeCrackedTiles() {
+            for (let i = 0; i < GRID_SIZE; i++) {
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    if (grid[i][j] && grid[i][j].cracked) {
+                        grid[i][j] = null;
+                    }
+                }
+            }
+            fallCandies();
+            fillEmptySpaces();
+            drawGrid();
         }
 
         function checkMatches() {
@@ -142,7 +215,7 @@
             for (let j = 0; j < GRID_SIZE; j++) {
                 let count = 1;
                 for (let i = 1; i < GRID_SIZE; i++) {
-                    if (grid[i][j] === grid[i-1][j] && grid[i][j] !== null) {
+                    if (grid[i][j] && grid[i-1][j] && grid[i][j].type === grid[i-1][j].type) {
                         count++;
                     } else {
                         if (count >= 3) {
@@ -164,7 +237,7 @@
             for (let i = 0; i < GRID_SIZE; i++) {
                 let count = 1;
                 for (let j = 1; j < GRID_SIZE; j++) {
-                    if (grid[i][j] === grid[i][j-1] && grid[i][j] !== null) {
+                    if (grid[i][j] && grid[i][j-1] && grid[i][j].type === grid[i][j-1].type) {
                         count++;
                     } else {
                         if (count >= 3) {
@@ -185,12 +258,22 @@
             return matches;
         }
 
-        function removeMatches(matches) {
+        function removeMatchesX(matches) {
             matches.forEach(candy => {
                 grid[candy.i][candy.j] = null;
             });
             updateScore(matches.length);
         }
+
+        function removeMatches(matches) {
+            matches.forEach(candy => {
+                grid[candy.i][candy.j] = { type: grid[candy.i][candy.j], cracked: true };
+            });
+            updateScore(matches.length);
+            setTimeout(() => removeCrackedTiles(), 500);
+        }
+
+        
 
         function fallCandies() {
             for (let i = 0; i < GRID_SIZE; i++) {
@@ -230,7 +313,7 @@
             for (let i = 0; i < GRID_SIZE; i++) {
                 for (let j = 0; j < GRID_SIZE; j++) {
                     if (grid[i][j] === null) {
-                        grid[i][j] = Math.floor(Math.random() * TILE_IMAGES.length);
+                        grid[i][j] = { type: Math.floor(Math.random() * TILE_IMAGES.length), cracked: false };
                     }
                 }
             }
@@ -350,6 +433,7 @@
                         removeMatches(matches);
                         fallCandies();
                         fillEmptySpaces();
+                        drawGrid();
                         // Check for cascading matches
                         do {
                             matches = checkMatches();
@@ -357,6 +441,7 @@
                                 removeMatches(matches);
                                 fallCandies();
                                 fillEmptySpaces();
+                                drawGrid();
                             }
                         } while (matches.length > 0);
                     }
