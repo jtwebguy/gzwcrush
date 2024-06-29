@@ -17,6 +17,10 @@
 </head>
 <body>
     <canvas id="gameCanvas" width="400" height="400"></canvas>
+    <audio id="matchSound" preload="auto">
+        <source src="./inspect-item.wav" type="audio/wav">
+      Your browser does not support the audio element.
+    </audio> 
     <div id="score-container">
         Score: <span id="current-score">0</span><br>
         High Score: <span id="high-score">0</span>
@@ -51,7 +55,11 @@
         let highScore = localStorage.getItem('highScore') || 0;
 
 
-        
+        function playMatchSound() {
+            const sound = document.getElementById('matchSound');
+            sound.currentTime = 0;  // Reset the audio to the beginning
+            sound.play();
+        }
 
         function loadImages() {
             return Promise.all(TILE_IMAGES.map(url => {
@@ -269,8 +277,12 @@
             matches.forEach(candy => {
                 grid[candy.i][candy.j] = { type: grid[candy.i][candy.j], cracked: true };
             });
-            updateScore(matches.length);
-            setTimeout(() => removeCrackedTiles(), 500);
+            
+            setTimeout(() => {
+                updateScore(matches.length);
+                removeCrackedTiles()
+                playMatchSound()
+            }, 500);
         }
 
         
